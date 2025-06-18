@@ -1,0 +1,21 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 3306,
+        "user": "misp",
+        "password": "62aabb024fafcf0669aac3e95f86fb9408b01bf8bde11006c01bc5c023008c78",
+        "database": "misp"
+    },
+    "extraction": {
+        "hours_lookback": 24,
+        "ioc_types": [
+            "ip-src", "ip-dst", "domain", "hostname", "url", 
+            "md5", "sha1", "sha256", "filename", "email-src", 
+            "email-dst", "mutex", "regkey", "snort", "yara"
+        ]
+    },
+    "output": {
+        "json_file": "misp_recent_iocs.json",
+        "cache_db": "ioc_cache.db"
+    }
+}
