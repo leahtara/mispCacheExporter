@@ -28,6 +28,7 @@ import datetime
 import argparse
 import mysql.connector
 from mysql.connector import Error
+import shutil  # Added for file operations
 
 # Set up the script directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -83,7 +84,8 @@ def load_config(config_path=None):
             },
             "output": {
                 "json_file": "misp_recent_iocs.json",
-                "cache_db": "ioc_cache.db"
+                "cache_db": "ioc_cache.db",
+                "backup_db": "ioc_cache_yesterday.db"  # Added backup db name
             }
         }
 
@@ -220,6 +222,38 @@ def save_to_json(iocs, output_file=None):
         logger.error(f"Error saving IOCs to file {output_file}: {e}")
 
 
+def backup_cache_db(db_path, backup_path=None):
+    """
+    Create a backup of the existing cache database.
+    
+    Args:
+        db_path: Path to the current SQLite database file
+        backup_path: Path where backup will be saved (None will use config value)
+    
+    Returns:
+        bool: True if backup was successful or not needed, False if it failed
+    """
+    if backup_path is None:
+        backup_path = os.path.join(SCRIPT_DIR, config['output'].get('backup_db', 'ioc_cache_yesterday.db'))
+    
+    try:
+        # Check if the current cache exists
+        if os.path.exists(db_path):
+            # Backup the existing file
+            shutil.copy2(db_path, backup_path)
+            logger.info(f"Created backup of IOC cache at {backup_path}")
+            
+            # Remove the current file to start fresh
+            os.remove(db_path)
+            logger.info(f"Removed old IOC cache at {db_path} to create fresh database")
+        else:
+            logger.info(f"No existing IOC cache found at {db_path}, no backup needed")
+        return True
+    except Exception as e:
+        logger.error(f"Error backing up cache database: {e}")
+        return False
+
+
 def save_to_cache_db(iocs, db_path=None):
     """
     Save the IOCs to a SQLite cache database.
@@ -230,6 +264,12 @@ def save_to_cache_db(iocs, db_path=None):
     """
     if db_path is None:
         db_path = os.path.join(SCRIPT_DIR, config['output']['cache_db'])
+    
+    # Backup the existing database before proceeding
+    backup_path = os.path.join(SCRIPT_DIR, config['output'].get('backup_db', 'ioc_cache_yesterday.db'))
+    if not backup_cache_db(db_path, backup_path):
+        logger.warning("Proceeding with database update without backup")
+    
     try:
         import sqlite3
         conn = sqlite3.connect(db_path)
@@ -251,7 +291,8 @@ def save_to_cache_db(iocs, db_path=None):
             attribute_timestamp TEXT,
             attribute_comment TEXT,
             attribute_to_ids INTEGER,
-            import_time TEXT
+            import_time TEXT,
+            executive_summary TEXT
         )
         ''')
         
